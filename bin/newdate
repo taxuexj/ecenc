@@ -1,0 +1,81 @@
+#!/usr/bin/perl -w
+#  emulates ECMWF's newdate facility (to increment dates) - FBouttier 
+#                                                           CNRM Nov 2000
+#  usage: newdate yyyymmddhh +hh
+$dbug=0;
+($#ARGV == 1) || die "Error - usage: newdate yyyymmddhh +hh";
+($ymdh,$delta)=@ARGV;
+$dbug && print "ymdh=",$ymdh," delta=",$delta,"\n";
+
+# Initialize list of days in months and cumulated list (with leap-year case)
+@monlens=(31,28,31,30,31,30,31,31,30,31,30,31);
+@monlensl=(31,29,31,30,31,30,31,31,30,31,30,31);
+$cumdays[0]=0 ; $cumdaysl[0]=0;
+for ($i=1 ; $i<=$#monlens ; $i++ ) {
+  $cumdays[$i]=$cumdays[$i-1]+$monlens[$i-1];
+  $cumdaysl[$i]=$cumdaysl[$i-1]+$monlensl[$i-1];
+}
+$dbug && print "cumdays=",join(" ",@cumdays),"\n";
+$dbug && print "cumdaysl=",join(" ",@cumdaysl),"\n";
+
+#  Check correctness of arguments
+
+($ymdh =~ '\d{10}') || die "Error - ",$ymdh," is not a yyyymmddhh date.\n";
+($delta =~ '[+-]\d+') || die "Error - ",$delta," is not an increment.\n";
+$yyyy=substr($ymdh,0,4);
+$mm=substr($ymdh,4,2);
+$dd=substr($ymdh,6,2);
+$hh=substr($ymdh,8,2);
+$dbug && print "yyyy=",$yyyy," mm=",$mm," dd=",$dd," hh=",$hh,"\n";
+($yyyy > 1900 ) || die "Error - year ",$yyyy," must be after 1900.\n";
+($yyyy < 2100 ) || die "Error - year ",$yyyy," must be before 2100.\n";
+($mm >= 1  ) || die "Error - month ",$mm," must be between 1 and 12.\n";
+($mm <= 12 ) || die "Error - month ",$mm," must be between 1 and 12.\n";
+$monlen=$monlens[$mm-1];
+if ( ($yyyy % 4) == 0) { $monlen=$monlensl[$mm-1]; } # leap year
+else                   { $monlen=$monlens[$mm-1]; } # non-leap year
+  
+$dbug && print "the length of this month is ",$monlen,"\n";
+($dd >= 1       ) || die "Error - date ",$dd," must be between 1 and 31.\n";
+($dd <= $monlen ) || die "Error - date ",$dd," must be between 1 & $monlen.\n";
+($hh >= 0  ) || die "Error - hour ",$hh," must be between 0 and 24.\n";
+($hh <= 23 ) || die "Error - hour ",$hh," must be between 0 and 24.\n";
+
+#  Convert date into decimal day coordinate since 1901
+
+$dcoord = ( $yyyy - 1901 ) * 365 +     #days in whole years since 1901
+          int( ( $yyyy - 1901 )/4 ) +  #leap days in whole years since 1901 
+          $cumdays[$mm-1] + ( $dd - 1 ) + $hh / 24 ; #months,days,hours
+if ( (($yyyy % 4) == 0) && ($mm > 2) ) { $dcoord++ ; 
+  $dbug && print "adding 1 leap day for current year\n";
+}
+$dbug && print "Initial day coordinate = ",$dcoord,"\n";
+
+#  Add offset (in hours)
+$dcoord += $delta/24 ;
+$dbug && print "New day coordinate = ",$dcoord,"\n";
+
+#   Convert day coordinate back into yyyymmddhh
+
+$dbug && print "Day coordinate=",$dcoord,"\n";
+$nbleap=int( $dcoord / (365*4+1) );
+$dbug && print "Nb of leap years passed since 1901 = ",$nbleap,"\n";
+$dsince= $dcoord % (365*4+1);
+$dbug && print "Nb of days since then=",$dcoord,"\n";
+$ysince= int( $dsince / 365 ) ; 
+if ( $ysince > 3 ) {$ysince=3 ;}  # exception for last day of leap years
+$dbug && print "Nb of years since then=",$ysince,"\n";
+$yyyy= 1901 + $nbleap*4 + $ysince;
+$dsince -= 365*$ysince ;
+$dbug && print "Nb of days since start of year=",$dsince,"\n";
+# look for month start index
+if ( ($yyyy % 4) == 0) {
+  for ($i=1 ; $i<=$#monlens ; $i++ ) { $dsince<$cumdaysl[$i] && last ; }
+  $dd= $dsince - $cumdaysl[$i-1] +1 ;
+} else {
+  for ($i=1 ; $i<=$#monlens ; $i++ ) { $dsince<$cumdays[$i] && last ; }
+  $dd= $dsince - $cumdays[$i-1] +1 ;
+}
+$mm=$i ; $hh=  ($dcoord * 24) % 24 ;
+$dbug && print "yyyy=",$yyyy," mm=",$mm," dd=",$dd," hh=",$hh,"\n";
+printf "%4.4d%2.2d%2.2d%2.2d\n",$yyyy,$mm,$dd,$hh;

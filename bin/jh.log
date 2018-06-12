@@ -1,0 +1,10 @@
+  argnum =      2
+ argstr 1 = 
+ /home/WORK/ecens/rawdata                                                                            
+ argstr 2 = 
+ 2017031812_180_24                                                                                   
+ process CDF file!
+ initial_date = 2017031812
+         2017            3           18           12
+ toutncf=/home/WORK/ecens/rawdata/T_2017031812_180_24_OUT.NC exist
+ coutncf=/home/WORK/ecens/rawdata/C_2017031812_180_24 not exist
